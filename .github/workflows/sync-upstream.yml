@@ -15,6 +15,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out fork
         uses: actions/checkout@v7
@@ -22,12 +23,18 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Fast-forward main from upstream
+      - name: Merge upstream without overwriting fork changes
         shell: bash
         run: |
           set -euo pipefail
           git remote add upstream https://github.com/kunchenguid/firstmate.git
           git fetch --no-tags upstream main
           git switch main
-          git merge --ff-only upstream/main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git merge --no-edit upstream/main; then
+            git merge --abort
+            echo "::error::Upstream conflicts with fork changes. Resolve on a review branch; main was not changed."
+            exit 1
+          fi
           git push origin HEAD:main
